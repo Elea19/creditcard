@@ -1,0 +1,34 @@
+import pyspark
+from pyspark.sql import SQLContext
+from pyspark import SparkContext
+from pyspark.sql import Row,functions
+from pyspark.mllib.linalg import Vector,Vectors
+
+
+
+# 把特征存储在Vector中，并将数据类型做更改
+def change_type(x):
+    try:
+        rel = {}
+        rel['features'] = Vectors.dense(float(x[0]), float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5]),
+                                        float(x[6]), float(x[7]), float(x[8]), float(x[9]), float(x[10]), float(x[11]),
+                                        float(x[12]), float(x[13]), float(x[14]), float(x[15]), float(x[16]),
+                                        float(x[17]), float(x[18]), float(x[19]), float(x[20]), float(x[21]),
+                                        float(x[22]), float(x[23]), float(x[24]), float(x[25]), float(x[26]),
+                                        float(x[27]), float(x[28]), float(x[29]))
+        rel['label'] = float(eval(x[-1]))
+        return rel
+    except BaseException as error:
+        print('the type of data is error')
+
+
+# 输入一个csv文件,返回第一个参数是sqlContext，第二个参数是dataframe
+def read_in_data(path):
+    try:
+        sc = SparkContext(appName="Pspark")
+        SQLContext(sc)
+        data_df = sc.textFile(path).map(lambda line: line.split(',')).map(lambda p: Row(**change_type(p))).toDF()
+        return data_df
+    except BaseException as error:
+        print('File format is incorrect，Please enter a csv or txt file')
+
