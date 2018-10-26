@@ -1,0 +1,25 @@
+#-*-coding:utf-8-*-
+from creditcard_model.data_inout import read_in_data
+from creditcard_model.evaluation import ModelEvaluation
+from creditcard_model.model import ModelSelect
+from creditcard_model.pretreatment import DataPre
+
+if __name__ == '__main__':
+    # 文件所在路径
+    path = "creditcard.csv"
+    data = read_in_data(path)
+    datapre = DataPre()
+    # 预处理，去重,去空值
+    df_remove_dup = datapre.remove_duplicates(data)
+    df = datapre.remove_na(df_remove_dup)
+    # 我们把数据集随机分成训练集和测试集，其中训练集占70%，测试集占30%
+    trainingData, testData = df.randomSplit([0.7, 0.3])
+    # 通过Logistic模型计算出混淆矩阵
+    my_model = ModelSelect()
+    predictions, cm = my_model.select('log', df, trainingData, testData)
+    # 计算召回率
+    my_model_eva = ModelEvaluation(cm)
+    my_model_eva.calculation_index('recall')
+
+
+
