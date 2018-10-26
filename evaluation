@@ -1,0 +1,89 @@
+#-*-coding:utf-8-*-
+from __future__ import division
+import pyspark
+import math
+
+class ModelEvaluation:
+    def __init__(self, cm):
+        # 真负
+        TN = cm[0, 0]
+        # 假正
+        FP = cm[0, 1]
+        # 假负
+        FN = cm[1, 0]
+        # 真正
+        TP = cm[1, 1]
+        self.TN = TN
+        self.FP = FP
+        self.FN = FN
+        self.TP = TP
+
+    # 各个指标的计算，输入一个混淆矩阵，打印出指标的结果
+    def calculation_index(self, norm):
+        try:
+            if norm == 'FPR':
+                try:
+                    # 假阳率
+                    FPR = self.FP / (self.TN + self.FP)
+                    return FPR
+                except BaseException as error:
+                    print(error, type(error))
+
+            elif norm == 'TPR':
+                try:
+                    # 真阳率
+                    TPR = self.TP / (self.TP + self.FN)
+                    return TPR
+                except BaseException as error:
+                    print(error, type(error))
+
+            elif norm == 'recall':
+                try:
+                    # recall（召回率）
+                    R = self.TP / (self.TP + self.FN)
+                    return R
+                except BaseException as error:
+                    print(error, type(error))
+
+            elif norm == 'Accuracy':
+                try:
+                    # 准确率
+                    Accuracy = (self.TP + self.TN) / (self.TP + self.TN + self.FN + self.FP)
+                    self.Accurary = Accuracy
+                    return Accuracy
+                except BaseException as error:
+                    print(error, type(error))
+
+            elif norm == 'F':
+                try:
+                    # F值，综合评定指标
+                    Accuracy = self.calculation_index('Accuracy')
+                    R = self.calculation_index('R')
+                    F_Score = (2 * Accuracy * R) / (Accuracy + R)
+                    return F_Score
+                except BaseException as error:
+                    print(error, type(error))
+
+            elif norm == 'Precision':
+                try:
+                    # 精确率
+                    Precision = self.TP / (self.TP + self.FP)
+                    return Precision
+                except BaseException as error:
+                    print(error, type(error))
+
+            elif norm == 'MCC':
+                try:
+                    # 马修相关系数，表示可靠性
+                    MCC = (self.TP * self.TN - self.FP *self. FN) / math.sqrt((self. TP +self. FP) * (self. TP + self. FN) * (self. TN + self. FP) * (self. TN + self. FN))
+                    return MCC
+                except BaseException as error:
+                    print(error, type(error))
+            else:
+                print('no this norm')
+
+        except BaseException as error:
+            print(error, type(error))
+
+
+
