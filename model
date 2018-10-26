@@ -1,0 +1,274 @@
+#-*-coding:utf-8-*-
+# 导入需要的包：
+import pyspark
+from pyspark.sql import SQLContext
+from pyspark import SparkContext
+from pyspark.ml import Pipeline
+from pyspark.ml.feature import IndexToString, StringIndexer, VectorIndexer,HashingTF, Tokenizer
+from sklearn.metrics import confusion_matrix
+# logistic模型
+from pyspark.ml.classification import LogisticRegression,LogisticRegressionModel
+# 决策树模型
+from pyspark.ml.classification import DecisionTreeClassificationModel,DecisionTreeClassifier
+# 梯度增强树（GBT）模型
+from pyspark.ml.classification import GBTClassifier
+# KMeans聚类算法模型
+from pyspark.ml.clustering import KMeans,KMeansModel
+# 多层感知器分类器（MLPC）模型
+from pyspark.ml.classification import MultilayerPerceptronClassifier
+# 随机森林模型
+from pyspark.ml.classification import RandomForestClassifier
+
+
+class ModelSelect:
+    def __init__(self):
+        sc = SparkContext(appName="Pspark")
+        sqlContext = SQLContext(sc)
+        self.sqlContext = sqlContext
+
+    # 使用logistic回归模型进行预测, 输入一个dataframe，输出第一个参数是测试集，第二个参数是预测的结果
+    def log_model(self, df, trainingData, testData):
+        try:
+            #  分别获取标签列和特征列，进行索引，并进行了重命名
+            labelIndexer = StringIndexer().setInputCol("label").setOutputCol("indexedLabel").fit(df)
+            featureIndexer = VectorIndexer().setInputCol("features").setOutputCol("indexedFeatures").fit(df)
+            # 构建logistic模型
+            lr = LogisticRegression().setLabelCol("indexedLabel").setFeaturesCol("indexedFeatures").setMaxIter(
+                10).setRegParam(0.3).setElasticNetParam(0.8)
+            # 设置一个labelConverter，目的是把预测的类别重新转化成字符型的
+            labelConverter = IndexToString().setInputCol("prediction").setOutputCol("predictedLabel").setLabels(
+                labelIndexer.labels)
+            # 构建pipeline，设置stage，然后调用fit()来训练模型。
+            lrPipeline = Pipeline().setStages([labelIndexer, featureIndexer, lr, labelConverter])
+            lrPipelineModel = lrPipeline.fit(trainingData)
+            # 利用训练得到的模型对测试集进行验证
+            lrPredictions = lrPipelineModel.transform(testData)
+            # 返回预测的结果
+            return lrPredictions
+        except BaseException as error:
+            print(error, type(error))
+
+
+    # 使用决策树模型进行预测, 输入一个dataframe，输出预测的结果
+    def decision_tree_model(self, df, trainingData, testData):
+        try:
+            #  分别获取标签列和特征列，进行索引，并进行了重命名
+            labelIndexer = StringIndexer().setInputCol("label").setOutputCol("indexedLabel").fit(df)
+            featureIndexer = VectorIndexer().setInputCol("features").setOutputCol("indexedFeatures").setMaxCategories(
+                4).fit(df)
+            # 构建决策树模型
+            dtClassifier = DecisionTreeClassifier().setLabelCol("indexedLabel").setFeaturesCol("indexedFeatures")
+            # 设置一个labelConverter，目的是把预测的类别重新转化成字符型的
+            labelConverter = IndexToString().setInputCol("prediction").setOutputCol("predictedLabel").setLabels(
+                labelIndexer.labels)
+            # 构建pipeline，设置stage，然后调用fit()来训练模型。
+            pipelinedClassifier = Pipeline().setStages([labelIndexer, featureIndexer, dtClassifier, labelConverter])
+            modelClassifier = pipelinedClassifier.fit(trainingData)
+            # 进行预测
+            predictionsClassifier = modelClassifier.transform(testData)
+            # 返回预测的结果
+            return predictionsClassifier
+        except BaseException as error:
+            print(error, type(error))
+
+
+    # 使用随机森林模型进行预测, 输入一个dataframe，输出预测的结果
+    def random_tree_model(self, df, trainingData, testData):
+        try:
+            #  分别获取标签列和特征列，进行索引，并进行了重命名
+            labelIndexer = StringIndexer().setInputCol("label").setOutputCol("indexedLabel").fit(df)
+            featureIndexer = VectorIndexer().setInputCol("features").setOutputCol("indexedFeatures").setMaxCategories(
+                4).fit(df)
+            # 构建随机森林模型
+            rf = RandomForestClassifier(labelCol="indexedLabel", featuresCol="indexedFeatures", numTrees=10)
+            # 设置一个labelConverter，目的是把预测的类别重新转化成字符型的
+            labelConverter = IndexToString().setInputCol("prediction").setOutputCol("predictedLabel").setLabels(
+                labelIndexer.labels)
+            # 构建pipeline，设置stage，然后调用fit()来训练模型。
+            pipelinedClassifier = Pipeline().setStages([labelIndexer, featureIndexer, rf, labelConverter])
+            modelClassifier = pipelinedClassifier.fit(trainingData)
+            # 进行预测
+            predictionsClassifier = modelClassifier.transform(testData)
+            # 返回预测的结果
+            return predictionsClassifier
+        except BaseException as error:
+            print(error, type(error))
+
+
+    # 使用梯度增强树（GBT）模型进行预测, 输入一个dataframe，输出预测的结果
+    def gradient_boosted_tree_model(self, df, trainingData, testData):
+        try:
+            #  分别获取标签列和特征列，进行索引，并进行了重命名
+            labelIndexer = StringIndexer().setInputCol("label").setOutputCol("indexedLabel").fit(df)
+            featureIndexer = VectorIndexer().setInputCol("features").setOutputCol("indexedFeatures").fit(df)
+            # 构建梯度增强树模型
+            gbt = GBTClassifier(labelCol="indexedLabel", featuresCol="indexedFeatures", maxIter=10)
+            # 设置一个labelConverter，目的是把预测的类别重新转化成字符型的
+            labelConverter = IndexToString().setInputCol("prediction").setOutputCol("predictedLabel").setLabels(
+                labelIndexer.labels)
+            # 构建pipeline，设置stage，然后调用fit()来训练模型。
+            gbtPipeline = Pipeline().setStages([labelIndexer, featureIndexer, gbt, labelConverter])
+            gbtPipelineModel = gbtPipeline.fit(trainingData)
+            # 进行预测
+            gbtPredictions = gbtPipelineModel.transform(testData)
+            # 返回预测的结果
+            return gbtPredictions
+        except BaseException as error:
+            print(error, type(error))
+
+
+    # 使用多层感知器分类器（MLPC）模型进行预测, 输入一个dataframe，输出预测的结果
+    def mlpc_model(self, df, trainingData, testData):
+        try:
+            # 构建多层感知器分类器（MLPC）模型
+            mlp = MultilayerPerceptronClassifier(maxIter=100, layers=[30, 31, 30, 2], blockSize=128, seed=1234)
+            # 训练模型
+            mlpPipelineModel = mlp.fit(trainingData)
+            # 进行预测
+            mlpPredictions = mlpPipelineModel.transform(testData)
+            # 返回预测的结果
+            return mlpPredictions
+        except BaseException as error:
+            print(error, type(error))
+
+
+    # 计算logistic模型的混淆矩阵，输入第一个参数为sqlContext, 第二个参数为DataFrame，
+    # 第三个参数是训练集，第四个参数是测试集，返回logistic模型下的混淆矩阵
+    def log_cm(self,  df, trainingData, testData):
+        try:
+            print('logistic Model')
+            Predictions = self.log_model(df, trainingData, testData)
+            preRel = Predictions.select("predictedLabel", "label", "features").collect()
+            cm = self.confusion_matrix_calculation(preRel, testData)
+            return cm
+        except BaseException as error:
+            print(error, type(error))
+
+
+    # 计算决策树模型的混淆矩阵，输入第一个参数为sqlContext, 第二个参数为DataFrame，
+    # 第三个参数是训练集，第四个参数是测试集，返回logistic模型下的混淆矩阵
+    def decision_tree_cm(self, df, trainingData, testData):
+        try:
+            print('decision tree Model')
+            Predictions = self.decision_tree_model(df, trainingData, testData)
+            preRel = Predictions.select("predictedLabel", "label", "features").collect()
+            cm = self.confusion_matrix_calculation(preRel, testData)
+            return cm
+        except BaseException as error:
+            print(error, type(error))
+
+    # 计算随机森林模型的混淆矩阵，输入第一个参数为sqlContext, 第二个参数为DataFrame，
+    # 第三个参数是训练集，第四个参数是测试集，返回随机森林模型下的混淆矩阵
+    def random_tree_cm(self, df, trainingData, testData):
+        try:
+            # random_tree
+            print('random tree Model')
+            Predictions = self.random_tree_model(df, trainingData, testData)
+            preRel = Predictions.select("predictedLabel", "label", "features").collect()
+            cm = self.confusion_matrix_calculation(preRel, testData)
+            return cm
+        except BaseException as error:
+            print(error, type(error))
+
+    # 计算梯度增强树模型的混淆矩阵，输入第一个参数为sqlContext, 第二个参数为DataFrame，
+    # 第三个参数是训练集，第四个参数是测试集，返回梯度增强树模型下的混淆矩阵
+    def gradient_boosted_tree_cm(self, df, trainingData, testData):
+        try:
+            print('gradient boosted tree Model')
+            Predictions = self.gradient_boosted_tree_model(df, trainingData, testData)
+            preRel = Predictions.select("predictedLabel", "label", "features").collect()
+            cm = self.confusion_matrix_calculation(preRel, testData)
+            return cm
+        except BaseException as error:
+            print(error, type(error))
+
+    # 计算多层感知器分类器（MLPC）模型的混淆矩阵，输入第一个参数为sqlContext, 第二个参数为DataFrame，
+    # 第三个参数是训练集，第四个参数是测试集，返回多层感知器分类器（MLPC）模型下的混淆矩阵
+    def mlpc_cm(self, df, trainingData, testData):
+        try:
+            print('MLPC Model')
+            Predictions = self.mlpc_model(df, trainingData, testData)
+            preRel = Predictions.select("prediction", "label", "features").collect()
+            cm = self.confusion_matrix_calculation_mlpc(preRel, testData)
+            return cm
+        except BaseException as error:
+            print(error, type(error))
+
+
+   # 混淆矩阵，输入第一个参数为sqlContext，第二个参数为预测结果集，第三个参数为测试数据，返回一个混淆矩阵
+
+    def confusion_matrix_calculation(self, preRel, testData):
+        try:
+            # 预测的数据
+            y_pre = []
+            for item in preRel:
+                y_pre.append(float(item['predictedLabel']))
+            # 实际的数据
+            self.sqlContext.registerDataFrameAsTable(testData, "creditTest")
+            y_true = self.sqlContext.sql("SELECT label from creditTest").collect()
+            y_true_list = []
+            for i in y_true:
+                y_true_list.append(i['label'])
+            # 构建混淆矩阵
+            cm = confusion_matrix(y_true_list, y_pre)
+            self.sqlContext.registerDataFrameAsTable(testData, "creditTest")
+            return cm
+
+        except BaseException as error:
+            print(error, type(error))
+
+    # mlpc模型的混淆矩阵，输入第一个参数为sqlContext，第二个参数为预测结果集，
+    # 第三个参数为测试数据，返回一个混淆矩阵
+    def confusion_matrix_calculation_mlpc(self, preRel, testData):
+
+        try:
+
+            # 预测的数据
+            y_pre = []
+            for item in preRel:
+                y_pre.append(float(item['prediction']))
+            # 实际的数据
+                self.sqlContext.registerDataFrameAsTable(testData, "creditTest")
+            y_true = self.sqlContext.sql("SELECT label from creditTest").collect()
+            y_true_list = []
+            for i in y_true:
+                y_true_list.append(i['label'])
+            # 构建混淆矩阵
+            cm = confusion_matrix(y_true_list, y_pre)
+            self.sqlContext.registerDataFrameAsTable(testData, "creditTest")
+            return cm
+        except BaseException as error:
+            print(error, type(error))
+
+    def select(self, model, df, trainingData, testData):
+        try:
+            if model == 'log':
+                predictions = self.log_model(df, trainingData, testData)
+                # 通过Logistic模型计算出混淆矩阵
+                cm = self.log_cm(df, trainingData, testData)
+                return predictions,cm
+            elif model == 'dt':
+                predictions = self.decision_tree_model(df, trainingData, testData)
+                # 通过Logistic模型计算出混淆矩阵
+                cm = self.decision_tree_cm(df, trainingData, testData)
+                return predictions, cm
+            elif model == 'rt':
+                predictions = self.random_tree_model(df, trainingData, testData)
+                # 通过Logistic模型计算出混淆矩阵
+                cm = self.random_tree_cm(df, trainingData, testData)
+                return predictions, cm
+            elif model == 'gbt':
+                predictions = self.gradient_boosted_tree_model(df, trainingData, testData)
+                # 通过Logistic模型计算出混淆矩阵
+                cm = self.gradient_boosted_tree_cm(df, trainingData, testData)
+                return predictions, cm
+            elif model == 'mlpc':
+                predictions = self.mlpc_model(df, trainingData, testData)
+                # 通过Logistic模型计算出混淆矩阵
+                cm = self.mlpc_cm(df, trainingData, testData)
+                return predictions, cm
+            else:
+                print('Without the model, write the correct model')
+        except BaseException as error:
+            print(error, type(error))
+
